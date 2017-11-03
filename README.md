@@ -59,76 +59,88 @@ The files from the last two steps will create skeleton for our next module that 
 ## 2 Querying Data
 Lets assume our application ui requires all kind of ratings at once so we have to send all the ratings in a list so we require a function for that work named `listRatings()`, similarly we need some more queries like `listTags()` and `listPeople(search text)`. 
 
-Lets start by writing down a function that returns all the tags in 'movie' database
+1. Lets start by writing down a function that returns all the tags in 'movie' 	database
 
-In the 'movie_repo.js' file, inside the exports field make a property method similar to the shown below.
+	In the 'movie_repo.js' file, inside the exports field make a property method 	similar to the shown below.
 
-```
-module.exports = {
-	listTags: function(){
+	```
+	module.exports = {
+		listTags: function(){
+		}
 	}
-}
-```
+	```
 
-Now we will start logic to get tags from inside the function
+	Now we will start logic to get tags from inside the function
 
-We need 'tagname as text' to make it more generic and 'id'. As told in the instruction it should return a bluebird promise. The code to attain that is written below which is self explainatory
+	We need 'tagname as text' to make it more generic and 'id'. As told in the 	instruction it should return a bluebird promise. The code to attain that is 	written below which is self explainatory
 
-```
-return db.select('name as text', 'id').from('tag').then();
-```
-similarly create for `listRatings()` function inside the same 'movie_repo.js' file. 
+	```
+	return db.select('name as text', 'id').from('tag').then();
+	```
+	similarly create for `listRatings()` function inside the same 'movie_repo.js' 	file. 
 
-Then to test whether the code is running fine or not go to app.js file and in that modify function to process query from `movie_repo.listTags()` and `moovie_repo.listRatings()`. The final code of 'movie_repo.js' and 'app.js' is given below
+	Then to test whether the code is running fine or not go to app.js file and in 	that modify function to process query from `movie_repo.listTags()` and 	`moovie_repo.listRatings()`. The final code of 'movie_repo.js' and 'app.js' is 	given below
 
-**movie-repo.js**
+	**movie-repo.js**
 
-```
-const promise = require("bluebird");
-const db = require("../db");
+	```
+	const promise = require("bluebird");
+	const db = require("../db");
 
-//should return bluebird promise
+	//should return bluebird promise
 
-module.exports = {
-  //listTags function
-  listTags: function() {
-    return db
-      .select("name as text", "id")
-      .from("tag")
-      .then();
-  },
-  listRatings: function() {
-    return db
-      .select("name as text", "id")
-      .from("rating")
-      .then();
-  }
-};
+	module.exports = {
+  	//listTags function
+  	listTags: function() {
+   	 return db
+   	   .select("name as text", "id")
+   	   .from("tag")
+   	   .then();
+  	},
+  	listRatings: function() {
+   	 return db
+   	   .select("name as text", "id")
+   	   .from("rating")
+   	   .then();
+  	}
+	};
 
-```
+	```
 
-**app.js**
+	**app.js**
 
-```
-const db = require("./db");
-const display = require("./display");
-const mRepo = require("./repo/movie-repo");
+	```
+	const db = require("./db");
+	const display = require("./display");
+	const mRepo = require("./repo/movie-repo");
 
-display.clear();
+	display.clear();
 
-mRepo
-  .listRatings()
-  .then(function(result) {
-    display.write(result, "pretty");
-  })
-  .catch(function(err) {
-    display.write(err);
-  })
-  .finally(function() {
-    db.destroy();
-  });
-```
+	mRepo
+  	.listRatings()
+  	.then(function(result) {
+   	 display.write(result, "pretty");
+  	})
+  	.catch(function(err) {
+   	 display.write(err);
+  	})
+  	.finally(function() {
+   	 db.destroy();
+  	});
+	```
 
-change listRatings() to listTags() will give tags. 
+	change listRatings() to listTags() will give tags. 
 
+	**commit**
  	
+2. In this step we will create `listPerson(search text)` function inside the 'person-repo.js' file, We will create a function inside the exports statement with the code given below
+	```
+	listPersons: function(searchText){
+		return db('person').where('name', 'like', '%'+searchText +'%')
+		.select('name as text', 'id').orderBy('name').then();
+	}
+	```
+	
+You could call this code similar to earlier code with searchText as parameter. use 'ca' it will result in 5 records.
+
+**commit**

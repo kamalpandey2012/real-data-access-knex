@@ -1,11 +1,12 @@
 const db = require("./db");
 const display = require("./display");
 const mRepo = require("./repo/movie-repo");
+const pRepo = require("./repo/person-repo");
 
 display.clear();
 
-mRepo
-  .listRatings()
+pRepo
+  .listPersons("ca")
   .then(function(result) {
     display.write(result, "pretty");
   })
