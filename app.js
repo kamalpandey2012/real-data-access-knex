@@ -3,10 +3,15 @@ const display = require("./display");
 const mRepo = require("./repo/movie-repo");
 const pRepo = require("./repo/person-repo");
 
+const qf = {
+  pgSize: 2,
+  pgNum: 1,
+  sort: "title"
+};
 display.clear();
 
-pRepo
-  .listPersons("ca")
+mRepo
+  .listMovies(qf)
   .then(function(result) {
     display.write(result, "pretty");
   })

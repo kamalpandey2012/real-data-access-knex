@@ -133,14 +133,189 @@ Lets assume our application ui requires all kind of ratings at once so we have t
 
 	**commit**
  	
-2. In this step we will create `listPerson(search text)` function inside the 'person-repo.js' file, We will create a function inside the exports statement with the code given below
+2. In this step we will create `listPerson(search text)` function inside the 	'person-repo.js' file, We will create a function inside the exports statement 	with the code given below
+		```
+		listPersons: function(searchText){
+			return db('person').where('name', 'like', '%'+searchText +'%')
+			.select('name as text', 'id').orderBy('name').then();
+		}
+		```
+	
+	You could call this code similar to earlier code with searchText as parameter. 	use 'ca' it will result in 5 records.
+
+	**commit**
+
+	Now try to run above code in production environment. It will result an empty 	array because postgres is matching the query with lowercase keywords. To solve 	the problem there are various work arounds we will use knex raw query method 	with the following code
 	```
-	listPersons: function(searchText){
-		return db('person').where('name', 'like', '%'+searchText +'%')
-		.select('name as text', 'id').orderBy('name').then();
+	.whereRaw("LOWER(name) like '%' || LOWER(?)|| '%'", searchText)
+	```
+
+	change only the where query to whereRaw query. This will solve the problem with 	production database (Before running these steps make sure your have seeded your 	database
+
+3. Now create a `getMovie()` function that will take movie_id as an argument and will return movie object of given id. 
+	
+	```
+	function getMovie(movie_id) {
+  		return db("movie as m")
+   	 		.join("person as p", "p.id", "m.director_id")
+   	 		.select("m.*", "p.name as director")
+   	 		.where("m.id", movie_id)
+   	 		.first()
+   	 		.then();
 	}
 	```
+	In this code we are asking knex to get 'movie' table with alias of 'm' and join the result with 'person' table with alias of 'p' which has person.id column matching the m.director_id column, where m.id is equal to movie_id provided, the query return an array and we know that this query will return only one field so we are converting array to object by getting only first result.
 	
-You could call this code similar to earlier code with searchText as parameter. use 'ca' it will result in 5 records.
+4. List the tags of a specific movie. we will create a function `listTagsFor(movie_id)` inside the movie-repo.js file. 
+ 
+ ```
+ function listTagsFor(movie_id) {
+  return db("tag as t")
+    .select("t.id", "t.name as text")
+    .joinRaw(
+      "JOIN tag_movie tm ON tm.tag_id = t.id AND tm.movie_id=?",
+      movie_id
+    )
+    .then();
+}
+ ```
+5. List all actors for a specific movie. 
+ 
+ ```
+ function listActorsFor(movie_id) {
+  return db("person as p")
+    .select(db.raw("p.id, p.firstname ||' '||p.lastname as text"))
+    .joinRaw(
+      "JOIN actor_movie am ON am.person_id = p.id AND am.movie_id=?",
+      movie_id
+    )
+    .then();
+ ``` 
+ 
+ Now we have all required operations for a movie data we will combine them to get the full movie api
+
+6. List all elements of movie
+	
+	```
+	function getMovieFull(movie_id) {
+  const pMovie = this.getMovie(movie_id),
+    pTag = this.listTagsFor(movie_id),
+    pActor = this.listActorsFor(movie_id);
+
+  return promise.all([pMovie, pTag, pActor]).then(function(results) {
+    	let movie = results[0];
+    	movie.tags = results[1];
+    	movie.actors = results[2];
+    	return movie;
+  });
+}
+```
+
+here we have used promise.all method to get result all the three queries. 
+
+7. List all movies according to query filter expression that will be like `{pgNum:1,pgSize: 10, sort:'releaseyr DESC'}`
+	
+	Below is the code to solve this problem
+	
+	```
+	function listMovies(qf) {
+  const result = {},
+    sort = qf.sort,
+    pg_size = Math.min(qf.pgSize, 10),
+    offset = (qf.pgNum - 1) * pg_size;
+
+  return db("movie as m")
+    .select("m.id", "m.title", "m.releaseyr", "m.runtime", "m.lastplaydt",
+      "r.name as rating"
+    )
+    .join("rating as r", "r.id", "m.rating_id")
+    .limit(pg_size)
+    .offset(offset)
+    .then();
+}
+``` 
+Here one thing is remaining as you can see the sort query is not escaped. To escape the sort query we have to create a `db-util.js` file
+
+```
+module.exports = {
+  parseSortString: parseSortString
+};
+
+function parseSortString(sortString, defaultSort) {
+  let s = sortString || defaultSort || "";
+  const result = {
+    column: "",
+    direction: "asc"
+  };
+  s = s.split(" ");
+  if (s.length < 1) {
+    return null;
+  }
+  result.column = s[0];
+  if (!result.column) {
+    return null;
+  }
+  if (s.length === 1) {
+    return result;
+  }
+  if (s[1].toLowerCase() == "desc") {
+    result.direction = "desc";
+  }
+
+  return result;
+}
+```
+Now change sort function of 'movie-repo.js' file 
+
+```
+function listMovies(qf) {
+  const result = {},
+    sort = util.parseSortString(qf.sort, "m.id"),
+    pg_size = Math.min(qf.pgSize, 10),
+    offset = (qf.pgNum - 1) * pg_size;
+  return db("movie")
+    .count("* as total")
+    .then(function(rows) {
+      result.total = rows[0].total;
+    })
+    .then(function() {
+      return db("movie as m")
+        .select(
+          "m.id",
+          "m.title",
+          "m.releaseyr",
+          "m.runtime",
+          "m.lastplaydt",
+          "r.name as rating"
+        )
+        .join("rating as r", "r.id", "m.rating_id")
+        .limit(pg_size)
+        .offset(offset)
+        .then();
+    })
+    .then(function(rows) {
+      result.pgSize = pg_size;
+      result.items = rows;
+      return result;
+    });
+}
+```
+in app.js file
+
+```
+
+const qf = {
+  pgSize: 2,
+  pgNum: 1,
+  sort: "title"
+};
+
+...
+
+mRepo.listMovies(qf).then()....
+```
 
 **commit**
+   
+
+	
