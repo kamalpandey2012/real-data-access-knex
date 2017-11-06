@@ -11,7 +11,7 @@ const qf = {
 display.clear();
 
 mRepo
-  .listMovies(qf)
+  .deleteMovie(8)
   .then(function(result) {
     display.write(result, "pretty");
   })

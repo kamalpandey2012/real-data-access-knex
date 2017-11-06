@@ -316,6 +316,32 @@ mRepo.listMovies(qf).then()....
 ```
 
 **commit**
+
+## 3 Modifying Data
+Now we know how to retrive data lets take our focus on modifying data. Now we will focus our attention on insertion, updation and deletion of data, out of these three steps deletion is most simple one. Lets write code for deleting data.
+
+**Deleting** - We will ask knex to work with the movie table and look at record where 'id' matches the 'movieId' we are passing then we will call the 'del()' function and execute it using the 'then()' promise interface. The code is given below
+
+```
+delete: function(){
+	return db('movie').where('id', movieId).del().then();
+}
+``` 
+thats a simple function that will do the work of deleting from 'movie' table it will also delete from associated 'actor' and 'tag' table. Let's check whether it works.
+
+modify 'app.js' file code. 
+
+```
+...
+
+mRepo
+  .deleteMovie(8).then(func...)...
+  
+```
+This will return '1' if successfull otherwise 0
+
+**commit**
+  
    
 
 	

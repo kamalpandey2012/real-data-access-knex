@@ -10,7 +10,8 @@ module.exports = {
   listTagsFor: listTagsFor,
   listActorsFor: listActorsFor,
   getMovieFull: getMovieFull,
-  listMovies: listMovies
+  listMovies: listMovies,
+  deleteMovie: deleteMovie
 };
 //list all tags
 function listTags() {
@@ -105,4 +106,11 @@ function listMovies(qf) {
       result.items = rows;
       return result;
     });
+}
+
+function deleteMovie(movieID) {
+  return db("movie")
+    .where("id", movieID)
+    .del()
+    .then();
 }
