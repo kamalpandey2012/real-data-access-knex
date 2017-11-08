@@ -10,8 +10,12 @@ module.exports = {
   listTagsFor: listTagsFor,
   listActorsFor: listActorsFor,
   getMovieFull: getMovieFull,
+  getTagIdsFor: getTagIdsFor,
+  getActorIdsFor: getActorIdsFor,
   listMovies: listMovies,
-  deleteMovie: deleteMovie
+  deleteMovie: deleteMovie,
+  add: add,
+  update: update
 };
 //list all tags
 function listTags() {
@@ -113,4 +117,81 @@ function deleteMovie(movieID) {
     .where("id", movieID)
     .del()
     .then();
+}
+
+function getTagIdsFor(movieId) {
+  return db("tag_movie")
+    .pluck("tag_id")
+    .where("movie_id", movieId)
+    .then();
+}
+
+function getActorIdsFor(movieID) {
+  return db("actor_movie")
+    .pluck("person_id")
+    .where("movie_id", movieID)
+    .then();
+}
+
+function add(m) {
+  let tags = m.tags;
+  let actors = m.actors;
+
+  delete m.tags;
+  delete m.actors;
+  delete m.id;
+
+  return db.transaction(function(trx) {
+    return trx
+      .insert(m, "id")
+      .into("movie")
+      .then(function(ids) {
+        m.id = ids[0];
+        actors = util.idToMMObjArr("person_id", actors, "movie_id", movieId);
+        tags = util.idToMMObjArr("tag_id", tags, "movie_id", movieId);
+        return trx.insert(actors).into("actor_movie");
+      })
+      .then(function() {
+        return trx.insert(tags).into("tag_movie");
+      })
+      .then(function() {
+        return m.id;
+      });
+  });
+}
+
+function update(m) {
+  let id = m.id;
+  let newActors = m.actors;
+  let newTags = m.tags;
+
+  return promise
+    .all([this.getActorIdsFor(id), this.getTagIdsFor(id)])
+    .then(function(results) {
+      newActors = util.getMMDelta(
+        newActors,
+        results[0],
+        "person_id",
+        "movie_id",
+        id
+      );
+      newTags = util.getMMDelta(newTags, results[1], "tag_id", "movie_id", id);
+    })
+    .then(function() {
+      return db.transaction(function(trx) {
+        return promise.all([
+          trx("movie").update(m),
+          trx("actor_movie")
+            .whereIn("person_id", newActors.del)
+            .andWhere("movie_id", id)
+            .del(),
+          trx("tag_movie")
+            .whereIn("tag_id", newTags.del)
+            .andWhere("movie_id", id)
+            .del(),
+          trx.insert(newActors.add).into("actor_movie"),
+          trx.insert(newTags.add).into("tag_movie")
+        ]);
+      });
+    });
 }
